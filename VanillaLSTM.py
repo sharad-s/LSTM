@@ -1,13 +1,13 @@
 import numpy as np
 
 class RecurrentNeuralNetwork:
-    
+
     def __init__ (self, xs, ys, rl, eo, lr):
-        #initial input 
+        #initial input
         self.x = np.zeros(xs)
         #input size
         self.xs = xs
-        #expected output 
+        #expected output
         self.y = np.zeros(ys)
         #output size
         self.ys = ys
@@ -35,13 +35,13 @@ class RecurrentNeuralNetwork:
         self.eo = np.vstack((np.zeros(eo.shape[0]), eo.T))
         #declare LSTM cell - add ability to declare multiple cells in future
         self.LSTM = LSTM(xs, ys, rl, lr)
-        
+
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
-    
+
     def dsigmoid(self, x):
-        return self.sigmoid(x) * (1 - self.sigmoid(x))    
-            
+        return self.sigmoid(x) * (1 - self.sigmoid(x))
+
     def forwardProp(self):
         #loop through recurrences - start at 1 so the 0th entry of all arrays will be an array of 0's
         for i in range(1, self.rl+1):
@@ -65,9 +65,9 @@ class RecurrentNeuralNetwork:
             #calculate output by multiplying hidden state with weight matrix
             self.oa[i] = self.sigmoid(np.dot(self.w, hs))
             self.x = self.eo[i-1]
-        #return all outputs    
+        #return all outputs
         return self.oa
-    
+
     def backProp(self):
         totalError = 0
         dfcs = np.zeros(self.ys)
@@ -99,19 +99,19 @@ class RecurrentNeuralNetwork:
             tiu += iu
             tcu += cu
             tou += ou
-        #update LSTM matrices with average of accumulated gradient updates    
-        self.LSTM.update(tfu/self.rl, tiu/self.rl, tcu/self.rl, tou/self.rl) 
-        #update weight matrix with average of accumulated gradient updates  
+        #update LSTM matrices with average of accumulated gradient updates
+        self.LSTM.update(tfu/self.rl, tiu/self.rl, tcu/self.rl, tou/self.rl)
+        #update weight matrix with average of accumulated gradient updates
         self.update(tu/self.rl)
         #return total error of this iteration
         return totalError
-    
+
     def update(self, u):
         #vanilla implementation of RMSprop
-        self.G = 0.9 * self.G + 0.1 * u**2  
+        self.G = 0.9 * self.G + 0.1 * u**2
         self.w -= self.lr/np.sqrt(self.G + 1e-8) * u
         return
-    
+
     def sample(self):
          #loop through recurrences - start at 1 so the 0th entry of all arrays will be an array of 0's
         for i in range(1, self.rl+1):
@@ -138,11 +138,11 @@ class RecurrentNeuralNetwork:
             newX = np.zeros_like(self.x)
             newX[maxI] = 1
             self.x = newX
-        #return all outputs    
+        #return all outputs
         return self.oa
-        
+
 class LSTM:
-    
+
     def __init__ (self, xs, ys, rl, lr):
         self.x = np.zeros(xs+ys)
         self.xs = xs + ys
@@ -159,19 +159,19 @@ class LSTM:
         self.Gi = np.zeros_like(self.i)
         self.Gc = np.zeros_like(self.c)
         self.Go = np.zeros_like(self.o)
-        
+
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
-    
+
     def dsigmoid(self, x):
         return self.sigmoid(x) * (1 - self.sigmoid(x))
-    
+
     def tangent(self, x):
         return np.tanh(x)
-    
+
     def dtangent(self, x):
         return 1 - np.tanh(x)**2
-    
+
     def forwardProp(self):
         f = self.sigmoid(np.dot(self.f, self.x))
         self.cs *= f
@@ -181,7 +181,7 @@ class LSTM:
         o = self.sigmoid(np.dot(self.o, self.x))
         self.y = o * self.tangent(self.cs)
         return self.cs, self.y, f, i, c, o
-   
+
     def backProp(self, e, pcs, f, i, c, o, dfcs, dfhs):
         e = np.clip(e + dfhs, -6, 6)
         do = self.tangent(self.cs) * e
@@ -194,27 +194,27 @@ class LSTM:
         df = dcs * pcs
         fu = np.dot(np.atleast_2d(df * self.dsigmoid(f)).T, np.atleast_2d(self.x))
         dpcs = dcs * f
-        dphs = np.dot(dc, self.c)[:self.ys] + np.dot(do, self.o)[:self.ys] + np.dot(di, self.i)[:self.ys] + np.dot(df, self.f)[:self.ys] 
+        dphs = np.dot(dc, self.c)[:self.ys] + np.dot(do, self.o)[:self.ys] + np.dot(di, self.i)[:self.ys] + np.dot(df, self.f)[:self.ys]
         return fu, iu, cu, ou, dpcs, dphs
-            
+
     def update(self, fu, iu, cu, ou):
-        self.Gf = 0.9 * self.Gf + 0.1 * fu**2 
-        self.Gi = 0.9 * self.Gi + 0.1 * iu**2   
-        self.Gc = 0.9 * self.Gc + 0.1 * cu**2   
-        self.Go = 0.9 * self.Go + 0.1 * ou**2   
+        self.Gf = 0.9 * self.Gf + 0.1 * fu**2
+        self.Gi = 0.9 * self.Gi + 0.1 * iu**2
+        self.Gc = 0.9 * self.Gc + 0.1 * cu**2
+        self.Go = 0.9 * self.Go + 0.1 * ou**2
         self.f -= self.lr/np.sqrt(self.Gf + 1e-8) * fu
         self.i -= self.lr/np.sqrt(self.Gi + 1e-8) * iu
         self.c -= self.lr/np.sqrt(self.Gc + 1e-8) * cu
         self.o -= self.lr/np.sqrt(self.Go + 1e-8) * ou
         return
-        
+
 def LoadText():
     with open("corpus/yachty.txt", "r") as text_file:
         data = text_file.read()
     text = list(data)
     outputSize = len(text)
     data = list(set(text))
-    uniqueWords, dataSize = len(data), len(data) 
+    uniqueWords, dataSize = len(data), len(data)
     returnData = np.zeros((uniqueWords, dataSize))
     for i in range(0, dataSize):
         returnData[i][i] = 1
@@ -222,7 +222,7 @@ def LoadText():
     output = np.zeros((uniqueWords, outputSize))
     for i in range(0, outputSize):
         index = np.where(np.asarray(data) == text[i])
-        output[:,i] = returnData[0:-1,index[0]].astype(float).ravel()  
+        output[:,i] = returnData[0:-1,index[0]].astype(float).ravel()
     return returnData, uniqueWords, output, outputSize, data
 
 def ExportText(output, data):
@@ -234,12 +234,12 @@ def ExportText(output, data):
     for i in range(0, output.shape[0]):
         for j in range(0, output.shape[1]):
             prob[j] = output[i][j] / np.sum(output[i])
-        outputText += np.random.choice(data, p=prob)    
+        outputText += np.random.choice(data, p=prob)
     with open("output.txt", "w") as text_file:
         text_file.write(outputText)
     return
 
-#Begin program    
+#Begin program
 print("Beginning")
 iterations = 5000
 learningRate = 0.001
@@ -255,9 +255,9 @@ for i in range(1, iterations):
         seed = np.zeros_like(RNN.x)
         maxI = np.argmax(np.random.random(RNN.x.shape))
         seed[maxI] = 1
-        RNN.x = seed  
+        RNN.x = seed
         output = RNN.sample()
-        print(output)    
+        print(output)
         ExportText(output, data)
         print("Done Writing")
 print("Complete")
